@@ -1,0 +1,57 @@
+from flask import Flask, render_template, request, redirect, url_for
+from flask_sqlalchemy import SQLAlchemy
+
+app = Flask(__name__)
+
+# Configuración de la Base de Datos SQLite
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///biblioteca.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
+
+# --- PROGRAMACIÓN ORIENTADA A OBJETOS (POO) ---
+
+# Clase Libro: Representa un producto en nuestro inventario
+class Libro(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    titulo = db.Column(db.String(100), nullable=False)
+    autor = db.Column(db.String(100), nullable=False)
+    cantidad = db.Column(db.Integer, nullable=False)
+    precio = db.Column(db.Float, nullable=False)
+
+    def __init__(self, titulo, autor, cantidad, precio):
+        self.titulo = titulo
+        self.autor = autor
+        self.cantidad = cantidad
+        self.precio = precio
+
+# Crear la base de datos dentro del contexto de la app
+with app.app_context():
+    db.create_all()
+
+# --- RUTAS Y CRUD ---
+
+@app.route('/')
+def index():
+    # Uso de Colecciones: Obtenemos todos los libros como una lista
+    libros = Libro.query.all()
+    return f"<h1>Inventario de Biblioteca</h1><p>Libros registrados: {len(libros)}</p> <a href='/agregar_ejemplo'>Agregar Libro de Prueba</a>"
+
+@app.route('/agregar_ejemplo')
+def agregar():
+    # Creamos un objeto de la clase Libro (POO)
+    nuevo_libro = Libro(titulo="Cien años de soledad", autor="Gabriel García Márquez", cantidad=5, precio=25.50)
+    db.session.add(nuevo_libro)
+    db.session.commit()
+    return redirect(url_for('index'))
+
+@app.route('/eliminar/<int:id>')
+def eliminar(id):
+    libro = Libro.query.get(id)
+    if libro:
+        db.session.delete(libro)
+        db.session.commit()
+    return redirect(url_for('index'))
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
