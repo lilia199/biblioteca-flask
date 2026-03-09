@@ -1,0 +1,72 @@
+import os
+import json
+import csv
+from flask import Flask, render_template, request, redirect, url_for
+from flask_sqlalchemy import SQLAlchemy
+
+app = Flask(__name__)
+
+# Configuración SQLite
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///biblioteca.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
+
+# MODELO POO
+class Libro(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    titulo = db.Column(db.String(100), nullable=False)
+    autor = db.Column(db.String(100), nullable=False)
+    cantidad = db.Column(db.Integer, nullable=False)
+    precio = db.Column(db.Float, nullable=False)
+
+with app.app_context():
+    db.create_all()
+
+# --- LÓGICA DE PERSISTENCIA EN ARCHIVOS ---
+def guardar_en_archivos(data):
+    # 1. Guardar en TXT
+    with open('inventario/data/datos.txt', 'a') as f:
+        f.write(f"{data['titulo']} | {data['autor']}\n")
+
+    # 2. Guardar en JSON
+    ruta_json = 'inventario/data/datos.json'
+    lista = []
+    if os.path.exists(ruta_json):
+        with open(ruta_json, 'r') as f:
+            try: lista = json.load(f)
+            except: lista = []
+    lista.append(data)
+    with open(ruta_json, 'w') as f:
+        json.dump(lista, f, indent=4)
+
+    # 3. Guardar en CSV
+    with open('inventario/data/datos.csv', 'a', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=['titulo', 'autor', 'cantidad', 'precio'])
+        writer.writerow(data)
+
+# --- RUTAS ---
+@app.route('/')
+def index():
+    libros_db = Libro.query.all()
+    return render_template('index.html', libros=libros_db)
+
+@app.route('/agregar_ejemplo')
+def agregar():
+    info = {"titulo": "Cien años de soledad", "autor": "Gabo", "cantidad": 10, "precio": 20.0}
+    
+    # Guardar en SQLite
+    nuevo = Libro(titulo=info['titulo'], autor=info['autor'], cantidad=info['cantidad'], precio=info['precio'])
+    db.session.add(nuevo)
+    db.session.commit()
+    
+    # Guardar en TXT, JSON y CSV
+    guardar_en_archivos(info)
+    
+    return redirect(url_for('index'))
+
+@app.route('/datos')
+def ver_datos():
+    # Leer del JSON para mostrar en la nueva plantilla de Semana 12
+    with open('inventario/data/datos.json', 'r') as f:
+        libros_archivo = json.load(f)
+    return render_template('datos.html', libros=libros_archivo)
