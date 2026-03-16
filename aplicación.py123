@@ -1,0 +1,32 @@
+from flask import Flask, render_template, request, redirect, url_for
+from Conexion.conexion import conectar # Importamos tu conexión
+
+app = Flask(__name__)
+
+@app.route('/')
+def index():
+    db = conectar()
+    cursor = db.cursor(dictionary=True) # Trae los datos como diccionario
+    cursor.execute("SELECT * FROM libros")
+    mis_libros = cursor.fetchall()
+    cursor.close()
+    db.close()
+    return render_template('index.html', libros=mis_libros)
+
+@app.route('/registrar_usuario', methods=['POST'])
+def registrar():
+    nombre = request.form['nombre']
+    mail = request.form['mail']
+    password = request.form['password']
+    
+    db = conectar()
+    cursor = db.cursor()
+    sql = "INSERT INTO usuarios (nombre, mail, password) VALUES (%s, %s, %s)"
+    cursor.execute(sql, (nombre, mail, password))
+    db.commit()
+    cursor.close()
+    db.close()
+    return "Usuario registrado con éxito en MySQL"
+
+if __name__ == '__main__':
+    app.run(debug=True)
